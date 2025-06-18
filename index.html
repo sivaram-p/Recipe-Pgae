@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Recipe Feed</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <h1>RECIPE FEED</h1>
+  <div id="loadingOverlay">Please wait, we are creating yummy dishes😋...</div>
+  <div class="controls">
+    <input id="search" placeholder="Search recipes😋 using title..." />
+    <a href="submit.html"><button id="travellink">Share your recipe</button></a>
+  </div>
+  <div class="recipe-container" id="recipes"></div>
+  <div id="recipePopup" class="popup">
+    <div class="popup-content">
+      <span id="closePopup" class="close">&times;</span>
+      <img id="popupImage" alt="Recipe Image" />
+      <h2 id="popupTitle"></h2>
+      <p><strong>By:</strong> <span id="popupName"></span></p>
+      <p><strong>Description:</strong> <span id="popupDescription"></span></p>
+      <p><strong>Ingredients:</strong> <span id="popupIngredients"></span></p>
+      <p><strong>Utensils:</strong> <span id="popupUtensils"></span></p>
+      <p><strong>Steps:</strong> <span id="popupSteps"></span></p>
+      <p><strong>Serving Style:</strong> <span id="popupServingStyle"></span></p>
+      <p><strong>Extra Notes:</strong> <span id="popupExtraNotes"></span></p>
+    </div>
+  </div>
+  <script>
+    setTimeout(() => {
+      document.getElementById("loadingOverlay").style.display = "none";
+    }, 1500);
+
+    const sheetId = "1C6MWyvAAx-3JVuEG1UwHiHvqTGozFgoRt5xZ16McqAQ";
+    const sheetName = "RecipieDataBase";
+    const sheetUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json&sheet=${sheetName}`;
+
+    async function loadRecipes() {
+      try {
+        const response = await fetch(sheetUrl);
+        const text = await response.text();
+        const json = JSON.parse(text.slice(47, -2));
+        const rows = json.table.rows;
+        rows.sort((a, b) => new Date(b.c[0]?.v || 0) - new Date(a.c[0]?.v || 0));
+        const uniqueRecipes = new Set();
+        const recipesContainer = document.getElementById("recipes");
+        for (const row of rows) {
+          const cells = row.c.map(cell => cell?.v || "");
+          const recipeKey = cells.join("|");
+          if (uniqueRecipes.has(recipeKey) || cells.every(cell => cell === "")) continue;
+          uniqueRecipes.add(recipeKey);
+          const [time, name, title, description, ingredients, utensils, steps, servingStyle, extraNotes, imageUrl] = cells;
+          let imageSrc = "https://via.placeholder.com/300x200?text=No+Image";
+          if (imageUrl.includes("drive.google.com")) {
+            const idMatch = imageUrl.match(/\/d\/([^/]+)\//);
+            if (idMatch) imageSrc = `https://drive.google.com/thumbnail?id=${idMatch[1]}`;
+          }
+          const recipeCard = document.createElement("div");
+          recipeCard.className = "recipe-card";
+          recipeCard.innerHTML = `
+            <img src="${imageSrc}" alt="Recipe Image" onerror="this.src='https://via.placeholder.com/300x200?text=Image+Error';">
+            <h2>${title}</h2>
+            <p><strong>Description:</strong> ${description}</p>
+            <p><strong>Ingredients:</strong> ${ingredients}</p>
+            <p><strong>Utensils:</strong> ${utensils}</p>
+          `;
+          recipeCard.addEventListener("click", () => showPopup({ name, title, description, ingredients, utensils, steps, servingStyle, extraNotes, imageSrc }));
+          recipesContainer.appendChild(recipeCard);
+        }
+
+        document.getElementById("search").addEventListener("input", function () {
+          const searchword = this.value.toLowerCase();
+          const recipecard = document.querySelectorAll(".recipe-card");
+          recipecard.forEach(card => {
+            const title = card.querySelector("h2").textContent.toLowerCase();
+            card.style.display = title.includes(searchword) ? "block" : "none";
+          });
+        });
+
+        document.getElementById("closePopup").addEventListener("click", hidePopup);
+        document.getElementById("recipePopup").addEventListener("click", (e) => {
+          if (e.target === e.currentTarget) hidePopup();
+        });
+      } catch (error) {
+        document.getElementById("loadingOverlay").textContent = "Failed to load. Nothing in the kitchen🥲.";
+      }
+    }
+
+    function showPopup(recipe) {
+      document.getElementById("popupImage").src = recipe.imageSrc;
+      document.getElementById("popupTitle").textContent = recipe.title;
+      document.getElementById("popupName").textContent = recipe.name;
+      document.getElementById("popupDescription").textContent = recipe.description;
+      document.getElementById("popupIngredients").textContent = recipe.ingredients;
+      document.getElementById("popupUtensils").textContent = recipe.utensils;
+      document.getElementById("popupSteps").textContent = recipe.steps;
+      document.getElementById("popupServingStyle").textContent = recipe.servingStyle;
+      document.getElementById("popupExtraNotes").textContent = recipe.extraNotes;
+      document.getElementById("recipePopup").style.display = "flex";
+    }
+
+    function hidePopup() {
+      document.getElementById("recipePopup").style.display = "none";
+    }
+
+    loadRecipes();
+  </script>
+</body>
+</html>

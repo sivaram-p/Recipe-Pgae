@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Recipe Sharing</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <h2>We are glad to hear your tasty recipes😋</h2>
+  <a href="index.html"><button id="travellink">Back to recipes</button></a>
+  <form id="recipeForm">
+    <label for="name">Name</label>
+    <input type="text" name="name" placeholder="Your Name" required />
+    <label for="title">Title</label>
+    <input type="text" name="title" placeholder="Recipe Title" required />
+    <label for="description">Description</label>
+    <textarea name="description" placeholder="Short Description" required></textarea>
+    <label for="ingredients">Ingredients</label>
+    <textarea name="ingredients" placeholder="Ingredients (comma-separated)" required></textarea>
+    <label for="utensils">Utensils</label>
+    <textarea name="utensils" placeholder="Utensils Required" required></textarea>
+    <label for="steps">Steps Required</label>
+    <textarea name="steps" placeholder="Preparation Steps" required></textarea>
+    <label for="serving">Serving style</label>
+    <textarea name="serving" placeholder="Serving Style" required></textarea>
+    <label for="extras">Extra Notes</label>
+    <textarea name="extras" placeholder="Extra Notes (Optional)"></textarea>
+    <label for="image">Thumbnail Image</label>
+    <div id="imagePreview"></div>
+    <input type="file" id="image" accept="image/*" />
+    <button type="submit">Submit Recipe</button>
+    <div id="status"></div>
+  </form>
+  <div id="submitOverlay">Submitting...</div>
+  <script>
+    const form = document.getElementById("recipeForm");
+    const statusDiv = document.getElementById("status");
+
+    document.getElementById("image").addEventListener("change", function () {
+      const preview = document.getElementById("imagePreview");
+      preview.innerHTML = "";
+      if (this.files[0]) {
+        const img = document.createElement("img");
+        img.src = URL.createObjectURL(this.files[0]);
+        preview.appendChild(img);
+      }
+    });
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      document.getElementById("submitOverlay").style.display = "flex";
+      const formData = new FormData(form);
+      const imageFile = document.getElementById("image").files[0];
+
+      if (imageFile && imageFile.size > 5 * 1024 * 1024) {
+        statusDiv.textContent = " Image size must be less than 5MB.";
+        document.getElementById("submitOverlay").style.display = "none";
+        return;
+      }
+
+      if (!formData.get("ingredients").includes(",")) {
+        statusDiv.textContent = " Ingredients must be comma-separated.";
+        document.getElementById("submitOverlay").style.display = "none";
+        return;
+      }
+
+      let imageData = "", imageType = "", imageName = "";
+
+      if (imageFile) {
+        const reader = new FileReader();
+        reader.onload = async function () {
+          const base64 = reader.result.split(",")[1];
+          imageData = base64;
+          imageType = imageFile.type;
+          imageName = imageFile.name;
+          await submitForm();
+        };
+        reader.readAsDataURL(imageFile);
+      } else {
+        await submitForm();
+      }
+
+      async function submitForm() {
+        const payload = {
+          name: formData.get("name"),
+          title: formData.get("title"),
+          description: formData.get("description"),
+          ingredients: formData.get("ingredients"),
+          utensils: formData.get("utensils"),
+          steps: formData.get("steps"),
+          serving: formData.get("serving"),
+          extras: formData.get("extras") || "",
+          imageData: imageData,
+          imageType: imageType,
+          imageName: imageName
+        };
+
+        try {
+          const res = await fetch("https://script.google.com/macros/s/AKfycbyuDtIH-Do4Xat1XMR2ED1lfO0BC7q9CLA7iNtSs0X8UD6SVij8R7x_CMKT6FdqR9dI/exec", {
+            method: "POST",
+            body: new URLSearchParams(payload)
+          });
+
+          const result = await res.json();
+
+          if (result.result === "success") {
+            statusDiv.textContent = " Recipe submitted!";
+            form.reset();
+            document.getElementById("imagePreview").innerHTML = "";
+          } else {
+            statusDiv.textContent = result.message || "Submission failed!";
+          }
+        } catch (error) {
+          statusDiv.textContent = "Error submitting form.";
+        }
+        document.getElementById("submitOverlay").style.display = "none";
+        setTimeout(() => (statusDiv.textContent = ""), 3000);
+      }
+    });
+  </script>
+</body>
+</html>
